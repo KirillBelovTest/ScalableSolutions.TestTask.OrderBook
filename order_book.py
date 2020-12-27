@@ -9,6 +9,28 @@ class Order:
         self.state = None
         self.id = self.__hash__()
 
+    @staticmethod
+    def _is_val(n):
+        """Check that 'n' is number value greater than 0.
+        """
+        return (type(n) == int or type(n) == float) and n > 0
+
+    def check(self):
+        """Returns 'self' or raise exception if one of the field is incorrect.
+        """
+        if self.side != "sell" and self.side != "buy":
+            raise Exception("Incorrect 'side' = '{1}' in {0}".format(self, self.side))
+        if self.state != None and self.state != "canceled" and self.state != "opened":
+            raise Exception("Incorrect 'state' = '{1}' in {0}".format(self, self.state))
+        if type(self.id) != int:
+            raise Exception("Incorrect 'id' = '{1}' in {0}".format(self, self.id))
+        if not Order._is_val(self.price):
+            raise Exception("Incorrect 'price' = '{1}' in {0}".format(self, self.price))
+        if not Order._is_val(self.quantity):
+            raise Exception("Incorrect 'quantity' = '{1}' in {0}".format(self, self.quantity))
+        
+        return self
+
 
 # %%
 class OrderBook:
@@ -22,9 +44,12 @@ class OrderBook:
         Returns unique generated order id.
         If order with the same id exists in the order book then raise exception. 
         """
-        order.state = "opened"
-        self.orders[order.id] = order
-        return order.id
+        if not order.id in self.orders and order.state == None:
+            order.state = "opened"
+            self.orders[order.id] = order.check()
+            return order.id
+        else:
+            raise Exception("Order with '{}' already in the order book".format(order.id))
 
     def get_order(self, id: int) -> Order:
         """Get order from internal dict by id.
