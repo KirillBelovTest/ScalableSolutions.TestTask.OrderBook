@@ -1,3 +1,4 @@
+import pytest
 from order_book import Order
 from order_book import OrderBook
 
@@ -7,7 +8,14 @@ def test_succes_order_book_01_create():
     assert type(book.orders) == dict
     assert len(book.orders) == 0
 
-def test_succes_add_order_01_one_order():
+def data_good_orders() -> list:
+    yield Order("buy", 1, 2)
+    yield Order("sell", 3, 4)
+    yield Order("buy", 5.6, 7.8)
+    yield Order("sell", 0.0000000000000001, 1000000000000000.0)
+
+@pytest.mark.parametrize("order", data_good_orders())
+def test_succes_add_order_01_one_order(order):
     book = OrderBook()
     order = Order("sell", 6, 1)
     id = book.add_order(order)
@@ -29,7 +37,8 @@ def test_success_add_order_02_several_orders():
     assert list(book.orders.values()) == [order1, order2]
     assert list(book.orders.keys()) == [order1.id, order2.id]
 
-def test_success_del_order_01_one_order():
+@pytest.mark.parametrize("order", data_good_orders())
+def test_success_del_order_01_one_order(order):
     book = OrderBook()
     order = Order("buy", 2, 6)
     book.add_order(order)
@@ -39,7 +48,8 @@ def test_success_del_order_01_one_order():
     assert len(book.orders) == 0
     assert order.state == "canceled"
 
-def test_succes_get_order_01_one_order():
+@pytest.mark.parametrize("order", data_good_orders())
+def test_succes_get_order_01_one_order(order):
     book = OrderBook()
     order = Order("sell", 8, 7)
     book.add_order(order)
@@ -103,3 +113,18 @@ def test_market_data_03_check_agregation():
         "bids": [{ "price": 1.0, "quantity": 2.0 }] 
     }
 
+def data_bad_orders():
+    yield Order("foo", 1, 2)
+    yield Order("buy", 0, 3)
+    yield Order("sell", 4, -1)
+    yield Order([], 5, 6)
+    yield Order("buy", "$7", 8)
+    yield Order("sell", 9, "1PC")
+    yield Order("buy", 0.001, -0.01)
+    yield Order("sell", -0.001, 0.01)
+
+@pytest.mark.parametrize("order", data_bad_orders())
+def test_except_add_order_01_bad_orders(order):
+    book = OrderBook()
+    with pytest.raises(Exception):
+        book.add_order(order)
