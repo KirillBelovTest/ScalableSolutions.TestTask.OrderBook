@@ -48,7 +48,7 @@ def test_succes_get_order_01_one_order():
     assert order.state == "opened"
     assert order2 == order
     assert len(book.orders) == 1
-    assert [book.orders] == { order2.id: order2 }
+    assert book.orders == { order2.id: order2 }
 
 def test_market_data_01_check_struct():
     book = OrderBook()
