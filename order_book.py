@@ -1,10 +1,22 @@
 # %%
+class Order:
+
+    def __init__(self, side: str, price: float, quantity: float):
+        self.side = side
+        self.price = print
+        self.quantity = quantity
+        
+        self.state = None
+        self.id = self.__hash__()
+
+
+# %%
 class OrderBook:
 
     def __init__(self):
         self.orders = {}
 
-    def add_order(self, order) -> int:
+    def add_order(self, order: Order) -> int:
         """Add object with type Order to internal dict.
         Generate order id and set this value to the field of the order named 'id'. 
         Returns unique generated order id.
