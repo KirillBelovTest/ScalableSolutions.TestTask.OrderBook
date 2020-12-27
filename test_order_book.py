@@ -126,5 +126,38 @@ def data_bad_orders():
 @pytest.mark.parametrize("order", data_bad_orders())
 def test_except_add_order_01_bad_orders(order):
     book = OrderBook()
+    
     with pytest.raises(Exception):
-        book.add_order(order)
+        assert type(book.add_order(order)) == int
+
+def test_except_add_order_02_add_several_times():
+    book = OrderBook()
+    order = Order("buy", 1, 1)
+    book.add_order(order)
+    
+    with pytest.raises(Exception):
+        assert type(book.add_order(order)) == int
+
+def test_except_add_order_03_add_del_add_chain():
+    book = OrderBook()
+    order = Order("buy", 1, 1)
+    book.add_order(order)
+    order = book.del_order(order.id)
+    
+    with pytest.raises(Exception):
+        assert type(book.add_order(order)) == int
+
+def test_except_del_order_01_order_id_not_exists():
+    book = OrderBook()
+    order = Order("buy", 1, 1)
+
+    with pytest.raises(Exception):
+        assert type(book.del_order(order.id)) == Order
+
+def test_except_get_order_01_order_id_not_exists():
+    book = OrderBook()
+    order = Order("buy", 1, 1)
+
+    with pytest.raises(Exception):
+        assert type(book.get_order(order.id)) == Order
+
