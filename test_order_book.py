@@ -1,69 +1,140 @@
 import pytest
+import random
+from order_book import BadOrderEx
+from order_book import NoOrderEx
+from order_book import DubOrderEx
+from order_book import Side
+from order_book import State
 from order_book import Order
 from order_book import OrderBook
 
+# helper funcs
+
+def is_same_orders(order1: Order, order2: Order) -> bool:
+    return order1.side == order2.side and order1.price == order2.price and order1.quantity == order2.quantity
+
+# data
+
+def random_order() -> Order:
+    """Random correct order.
+    """
+    random.seed()
+    side = random.choice([Side.BUY, Side.SELL])
+    price = random.random()
+    quantity = random.random()
+    return Order(side, price, quantity)
+
+def random_buy_order() -> Order:
+    """Random correct buy order.
+    """
+    order = random_order()
+    order.side = Side.BUY
+    return order
+
+def random_sell_order() -> Order:
+    """Random correct sell order.
+    """
+    order = random_order()
+    order.side = Side.SELL
+    return order
+
+def good_orders() -> list:
+    """Orders with correct parameters.
+    """
+    yield Order(Side.BUY, 1, 2)
+    yield Order(Side.SELL, 3, 4)
+    yield Order(Side.BUY, 5.6, 7.8)
+    yield Order(Side.SELL, 0.0000000000000001, 2000000000000000.0)
+    yield Order(Side.SELL, 3000000000000000.0, 0.0000000000000004)
+
+def bad_orders() -> list:
+    """Orders with incorrect parameters.
+    """
+    yield Order("foo", 1, 2)
+    yield Order(Side.BUY, 0, 3)
+    yield Order(Side.SELL, 4, -1)
+    yield Order([], 5, 6)
+    yield Order(Side.BUY, "$7", 8)
+    yield Order(Side.SELL, 9, "1PC")
+    yield Order(Side.BUY, 0.001, -0.01)
+    yield Order(Side.SELL, -0.001, 0.01)
+
+# success 'order book' tests
+
 def test_succes_order_book_01_create():
+    """Create OrderBook and check internal field value.
+    """
+    print("Crete order book")
     book = OrderBook()
 
+    print("Check order book internal fields")
     assert type(book.orders) == dict
     assert len(book.orders) == 0
 
-def data_good_orders() -> list:
-    yield Order("buy", 1, 2)
-    yield Order("sell", 3, 4)
-    yield Order("buy", 5.6, 7.8)
-    yield Order("sell", 0.0000000000000001, 1000000000000000.0)
+# success 'add order' tests
 
-@pytest.mark.parametrize("order", data_good_orders())
+@pytest.mark.parametrize("order", good_orders())
 def test_succes_add_order_01_one_order(order):
+    print("Crete order book")
     book = OrderBook()
-    order = Order("sell", 6, 1)
+
+    print("Add order to order book")
     id = book.add_order(order)
 
-    assert id == order.id
-    assert order.state == "opened"
+    print("Check that result of adding is int value")
+    assert isinstance(id, int)
+    print("Check that in order book is one order")
     assert len(book.orders) == 1
-    assert list(book.orders.values()) == [order]
-    assert list(book.orders.keys()) == [order.id]
+
+    print("Extract order from internal dict")
+    order_added = book.orders[id]
+
+    print("Check that retuned result and order id is the same")
+    assert id == order_added.id
+    print("Check that order state is OPENED")
+    assert order_added.state == State.OPENED
+    print("Check that values of orders is the same")
+    assert is_same_orders(order, order_added)
 
 def test_success_add_order_02_several_orders():
     book = OrderBook()
-    order1 = Order("buy", 3, 4)
-    order2 = Order("sell", 7, 5)
-    book.add_order(order1)
-    book.add_order(order2)
+    orders = list(good_orders())
+    for order in orders:
+        book.add_order(order)
 
-    assert len(book.orders) == 2
-    assert list(book.orders.values()) == [order1, order2]
-    assert list(book.orders.keys()) == [order1.id, order2.id]
+    assert len(book.orders) == len(orders)
 
-@pytest.mark.parametrize("order", data_good_orders())
+# success 'del order' tests
+
+@pytest.mark.parametrize("order", good_orders())
 def test_success_del_order_01_one_order(order):
     book = OrderBook()
-    order = Order("buy", 2, 6)
-    book.add_order(order)
-    order2 = book.del_order(order.id)
+    id = book.add_order(order)
+    order_deleted = book.del_order(id)
 
-    assert order2 == order
+    assert is_same_orders(order, order_deleted)
     assert len(book.orders) == 0
-    assert order.state == "canceled"
+    assert order_deleted.state == State.CANCELED
 
-@pytest.mark.parametrize("order", data_good_orders())
+# success 'get order' tests
+
+@pytest.mark.parametrize("order", good_orders())
 def test_succes_get_order_01_one_order(order):
     book = OrderBook()
-    order = Order("sell", 8, 7)
-    book.add_order(order)
-    order2 = book.get_order(order.id)
+    id = book.add_order(order)
+    order_taken = book.get_order(id)
 
-    assert order.state == "opened"
-    assert order2 == order
+    assert order_taken.state == State.OPENED
+    assert is_same_orders(order, order_taken)
     assert len(book.orders) == 1
-    assert book.orders == { order2.id: order2 }
+    assert book.orders == { order_taken.id: order_taken }
+
+# succes 'show market data' tests
 
 def test_market_data_01_check_struct():
     book = OrderBook()
-    order1 = Order("buy", 1, 8)
-    order2 = Order("sell", 9, 9)
+    order1 = random_buy_order()
+    order2 = random_sell_order()
     book.add_order(order1)
     book.add_order(order2)
     market = book.market_data()
@@ -75,12 +146,12 @@ def test_market_data_01_check_struct():
 
 def test_market_data_02_check_sorting():
     book = OrderBook()
-    order1 = Order("buy", 1, 1)
-    order2 = Order("sell", 9, 2)
-    order3 = Order("buy", 3, 3)
-    order4 = Order("sell", 7, 4)
-    order5 = Order("buy", 2, 5)
-    order6 = Order("sell", 8, 6)
+    order1 = Order(Side.BUY, 1, 1)
+    order2 = Order(Side.SELL, 9, 2)
+    order3 = Order(Side.BUY, 3, 3)
+    order4 = Order(Side.SELL, 7, 4)
+    order5 = Order(Side.BUY, 2, 5)
+    order6 = Order(Side.SELL, 8, 6)
     
     book.add_order(order1)
     book.add_order(order2)
@@ -96,10 +167,10 @@ def test_market_data_02_check_sorting():
 
 def test_market_data_03_check_agregation():
     book = OrderBook()
-    order1 = Order("buy", 1, 1)
-    order2 = Order("sell", 2, 1)
-    order3 = Order("buy", 1, 1)
-    order4 = Order("sell", 2, 1)
+    order1 = Order(Side.BUY, 1, 1)
+    order2 = Order(Side.SELL, 2, 1)
+    order3 = Order(Side.BUY, 1, 1)
+    order4 = Order(Side.SELL, 2, 1)
     
     book.add_order(order1)
     book.add_order(order2)
@@ -113,51 +184,77 @@ def test_market_data_03_check_agregation():
         "bids": [{ "price": 1.0, "quantity": 2.0 }] 
     }
 
-def data_bad_orders():
-    yield Order("foo", 1, 2)
-    yield Order("buy", 0, 3)
-    yield Order("sell", 4, -1)
-    yield Order([], 5, 6)
-    yield Order("buy", "$7", 8)
-    yield Order("sell", 9, "1PC")
-    yield Order("buy", 0.001, -0.01)
-    yield Order("sell", -0.001, 0.01)
+# success 'try to change order in order book'
 
-@pytest.mark.parametrize("order", data_bad_orders())
+def test_except_try_change_01_side_after_add():
+    book = OrderBook()
+    order = Order(Side.BUY, 1, 1)
+    id = book.add_order(order)
+    order.side = "foo"
+    order_added = book.get_order(id)
+
+    assert not is_same_orders(order, order_added)
+
+def test_except_try_change_02_price_after_add():
+    book = OrderBook()
+    order = Order(Side.BUY, 1, 1)
+    id = book.add_order(order)
+    order.price = -1
+    order_added = book.get_order(id)
+
+    assert not is_same_orders(order, order_added)
+
+def test_except_try_change_03_quantity_after_add():
+    book = OrderBook()
+    order = Order(Side.BUY, 1, 1)
+    id = book.add_order(order)
+    order.quantity = -1
+    order_added = book.get_order(id)
+
+    assert not is_same_orders(order, order_added)
+
+# excepr 'add order' tests
+
+@pytest.mark.parametrize("order", bad_orders())
 def test_except_add_order_01_bad_orders(order):
     book = OrderBook()
     
-    with pytest.raises(Exception):
+    with pytest.raises(BadOrderEx):
         assert type(book.add_order(order)) == int
 
 def test_except_add_order_02_add_several_times():
     book = OrderBook()
-    order = Order("buy", 1, 1)
-    book.add_order(order)
+    order = Order(Side.BUY, 1, 1)
+    id = book.add_order(order)
+    order.id = id
     
-    with pytest.raises(Exception):
+    with pytest.raises(BadOrderEx):
         assert type(book.add_order(order)) == int
 
 def test_except_add_order_03_add_del_add_chain():
     book = OrderBook()
-    order = Order("buy", 1, 1)
-    book.add_order(order)
-    order = book.del_order(order.id)
+    order = random_order()
+    id = book.add_order(order)
+    order = book.del_order(id)
     
-    with pytest.raises(Exception):
+    with pytest.raises(BadOrderEx):
         assert type(book.add_order(order)) == int
+
+# except 'del order' test
 
 def test_except_del_order_01_order_id_not_exists():
     book = OrderBook()
-    order = Order("buy", 1, 1)
+    id = 1234567890
 
-    with pytest.raises(Exception):
-        assert type(book.del_order(order.id)) == Order
+    with pytest.raises(NoOrderEx):
+        assert type(book.del_order(id)) == Order
+
+# except 'get order' tests
 
 def test_except_get_order_01_order_id_not_exists():
     book = OrderBook()
-    order = Order("buy", 1, 1)
+    id = 1234567890
 
-    with pytest.raises(Exception):
-        assert type(book.get_order(order.id)) == Order
+    with pytest.raises(NoOrderEx):
+        assert type(book.get_order(id)) == Order
 

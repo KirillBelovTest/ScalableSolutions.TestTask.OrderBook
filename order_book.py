@@ -1,13 +1,46 @@
 # %%
+import uuid
+from enum import Enum
+
+# %%
+class NoOrderEx(Exception):
+
+    def __init__(self, id: int):
+        super().__init__("In the order book doesn't exists order with id = {}".format(id))
+
+# %%
+class BadOrderEx(Exception):
+
+    def __init__(self, order, key, val):
+        super().__init__("Incorret {} = {} in {}".format(key, val, order))
+
+# %%
+class DubOrderEx(Exception):
+
+    def __init__(self, id):
+        super().__init__("In the order book already exists order with id = {}".format(id))
+
+# %%
+class Side(Enum):
+    BUY = 0
+    SELL = 1
+
+# %%
+class State(Enum):
+    NONE = 0
+    OPENED = 1
+    CANCELED = 2
+
+# %%
 class Order:
 
-    def __init__(self, side: str, price: float, quantity: float):
+    def __init__(self, side: Side, price: float, quantity: float):
         self.side = side
         self.price = price
         self.quantity = quantity
 
-        self.state = None
-        self.id = self.__hash__()
+        self.state = State.NONE
+        self.id = 0
 
     @staticmethod
     def _is_val(n):
@@ -15,22 +48,38 @@ class Order:
         """
         return (type(n) == int or type(n) == float) and n > 0
 
+    def copy(self):
+        """Copy order to new object.
+        """
+        order = Order(self.side, self.price, self.quantity)
+        order.state = self.state
+        order.id = self.id
+        return order
+
     def check(self):
         """Returns 'self' or raise exception if one of the field is incorrect.
         """
-        if self.side != "sell" and self.side != "buy":
-            raise Exception("Incorrect 'side' = '{1}' in {0}".format(self, self.side))
-        if self.state != None and self.state != "canceled" and self.state != "opened":
-            raise Exception("Incorrect 'state' = '{1}' in {0}".format(self, self.state))
-        if type(self.id) != int:
-            raise Exception("Incorrect 'id' = '{1}' in {0}".format(self, self.id))
+        if not isinstance(self.side, Side):
+            raise BadOrderEx(self, "side", self.side)
+        if not isinstance(self.state, State):
+            raise BadOrderEx(self, "state", self.state)
+        if not isinstance(self.id, int):
+            raise BadOrderEx(self, "id", self.id)
         if not Order._is_val(self.price):
-            raise Exception("Incorrect 'price' = '{1}' in {0}".format(self, self.price))
+            raise BadOrderEx(self, "price", self.price)
         if not Order._is_val(self.quantity):
-            raise Exception("Incorrect 'quantity' = '{1}' in {0}".format(self, self.quantity))
+            raise BadOrderEx(self, "quantity", self.quantity)
         
         return self
-
+    
+    def __eq__(self, order) -> bool:
+        try:
+            return self.id == order.id and self.price == order.price and self.quantity == order.quantity and self.side == order.side and self.state == order.state
+        except:
+            return False
+    
+    def __str__(self) -> str:
+        return "Order(side = {}, price = {}, quantity = {}, state = {}, id = {})".format(self.side, self.price, self.quantity, self.state, self.id)
 
 # %%
 class OrderBook:
@@ -44,27 +93,35 @@ class OrderBook:
         Returns unique generated order id.
         If order with the same id exists in the order book then raise exception. 
         """
-        if not order.id in self.orders and order.state == None:
-            order.state = "opened"
-            self.orders[order.id] = order.check()
-            return order.id
+        if order.id == 0 and order.state is State.NONE:
+            copy = order.copy()
+            copy.state = State.OPENED
+            copy.id = uuid.uuid4().int
+            self.orders[copy.id] = copy.check()
+            return copy.id
         else:
-            raise Exception("Order with '{}' already in the order book".format(order.id))
+            raise BadOrderEx(order, "(id or state)", (order.id, order.state))
 
     def get_order(self, id: int) -> Order:
         """Get order from internal dict by id.
         Returns order with passed id or raise exception if this order doesn't exists.
         """
-        return self.orders[id]
+        if id in self.orders:
+            return self.orders[id].copy()
+        else:
+            raise NoOrderEx(id)
 
     def del_order(self, id: int) -> Order: 
         """Delete ordere from order book.
         Returns order with passed id or raise exception if this order doesn't exists. 
         Change order state to 'canceled'.
         """
-        order = self.orders.pop(id)
-        order.state = "canceled"
-        return order
+        if id in self.orders:
+            order = self.orders.pop(id)
+            order.state = State.CANCELED
+            return order
+        else:
+            raise NoOrderEx(id)
 
     def market_data(self) -> dict:
         """Returns representation of all orders as a dictionary with keys 'asks' and 'bids'. 
@@ -72,7 +129,7 @@ class OrderBook:
         orders = list(self.orders.values())
         orders.sort(key = lambda o: o.price, reverse = True)
 
-        asks = filter(lambda o: o.side == "sell", orders)
+        asks = filter(lambda o: o.side is Side.SELL, orders)
         asks = list(map(lambda o: { "price": o.price, "quantity": o.quantity }, asks))
         if len(asks) > 1:
             for i in range(len(asks) - 1):
@@ -81,7 +138,7 @@ class OrderBook:
                     asks[i]["quantity"] = 0
         asks = list(filter(lambda d: d["quantity"] > 0, asks))
 
-        bids = filter(lambda o: o.side == "buy", orders)
+        bids = filter(lambda o: o.side is Side.BUY, orders)
         bids = list(map(lambda o: { "price": o.price, "quantity": o.quantity }, bids))
         if len(bids) > 1:
             for i in range(len(bids) - 1):
