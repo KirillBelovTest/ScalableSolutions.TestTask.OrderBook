@@ -1,12 +1,14 @@
-import pytest
 import random
+
+import pytest
+
 from order_book import BadOrderEx
 from order_book import NoOrderEx
-from order_book import DubOrderEx
-from order_book import Side
-from order_book import State
 from order_book import Order
 from order_book import OrderBook
+from order_book import Side
+from order_book import State
+
 
 # helper funcs
 
@@ -14,6 +16,7 @@ def is_same_orders(order1: Order, order2: Order) -> bool:
     """Compare only order values (without id  or state).
     """
     return order1.side == order2.side and order1.price == order2.price and order1.quantity == order2.quantity
+
 
 # data
 
@@ -26,6 +29,7 @@ def random_order() -> Order:
     quantity = random.random()
     return Order(side, price, quantity)
 
+
 def random_buy_order() -> Order:
     """Random correct buy order.
     """
@@ -33,12 +37,14 @@ def random_buy_order() -> Order:
     order.side = Side.BUY
     return order
 
+
 def random_sell_order() -> Order:
     """Random correct sell order.
     """
     order = random_order()
     order.side = Side.SELL
     return order
+
 
 def good_orders() -> list:
     """Orders with correct parameters.
@@ -48,6 +54,7 @@ def good_orders() -> list:
     yield Order(Side.BUY, 5.6, 7.8)
     yield Order(Side.SELL, 0.0000000000000001, 2000000000000000.0)
     yield Order(Side.SELL, 3000000000000000.0, 0.0000000000000004)
+
 
 def bad_orders() -> list:
     """Orders with incorrect parameters.
@@ -61,9 +68,10 @@ def bad_orders() -> list:
     yield Order(Side.BUY, 0.001, -0.01)
     yield Order(Side.SELL, -0.001, 0.01)
 
+
 # success 'order book' tests
 
-def test_succes_order_book_01_create():
+def test_success_order_book_01_create():
     print("Create order book")
     book = OrderBook()
 
@@ -71,10 +79,11 @@ def test_succes_order_book_01_create():
     assert type(book.orders) == dict
     assert len(book.orders) == 0
 
+
 # success 'add order' tests
 
 @pytest.mark.parametrize("order", good_orders())
-def test_succes_add_order_01_one_order(order):
+def test_success_add_order_01_one_order(order):
     print("Create order book")
     book = OrderBook()
 
@@ -89,12 +98,13 @@ def test_succes_add_order_01_one_order(order):
     print("Extract order from internal dict")
     order_added = book.orders[id]
 
-    print("Check that retuned result and order id is the same")
+    print("Check that returned result and order id is the same")
     assert id == order_added.id
     print("Check that order state is OPENED")
     assert order_added.state == State.OPENED
     print("Check that values of orders is the same")
     assert is_same_orders(order, order_added)
+
 
 def test_success_add_order_02_several_orders():
     print("Create order book")
@@ -107,6 +117,7 @@ def test_success_add_order_02_several_orders():
 
     print("Check that all orders was been added")
     assert len(book.orders) == len(orders)
+
 
 # success 'del order' tests
 
@@ -125,25 +136,27 @@ def test_success_del_order_01_one_order(order):
     assert len(book.orders) == 0
     assert order_deleted.state == State.CANCELED
 
+
 # success 'get order' tests
 
 @pytest.mark.parametrize("order", good_orders())
-def test_succes_get_order_01_one_order(order):
+def test_success_get_order_01_one_order(order):
     print("Create order book")
     book = OrderBook()
 
     print("Adding order")
     id = book.add_order(order)
-    
+
     print("Check result of calling 'get_order'")
     order_taken = book.get_order(id)
 
     assert order_taken.state == State.OPENED
     assert is_same_orders(order, order_taken)
     assert len(book.orders) == 1
-    assert book.orders == { order_taken.id: order_taken }
+    assert book.orders == {order_taken.id: order_taken}
 
-# succes 'show market data' tests
+
+# success 'show market data' tests
 
 def test_market_data_01_check_struct():
     print("Create order book")
@@ -158,12 +171,13 @@ def test_market_data_01_check_struct():
     book.add_order(order2)
 
     print("Getting market data")
-    market = book.market_data()
+    market = book.market_data
 
-    assert market == { 
-        "asks": [{ "price": order2.price, "quantity": order2.quantity }], 
-        "bids": [{ "price": order1.price, "quantity": order1.quantity }] 
+    assert market == {
+        "asks": [{"price": order2.price, "quantity": order2.quantity}],
+        "bids": [{"price": order1.price, "quantity": order1.quantity}]
     }
+
 
 def test_market_data_02_check_sorting():
     print("Create order book")
@@ -184,12 +198,13 @@ def test_market_data_02_check_sorting():
     book.add_order(order4)
     book.add_order(order5)
     book.add_order(order6)
-    
-    print("Getting market data")
-    market = book.market_data()
 
-    assert market["asks"] == sorted(market["asks"], key = lambda d: d["price"], reverse = True)
-    assert market["bids"] == sorted(market["bids"], key = lambda d: d["price"], reverse = True)
+    print("Getting market data")
+    market = book.market_data
+
+    assert market["asks"] == sorted(market["asks"], key=lambda d: d["price"], reverse=True)
+    assert market["bids"] == sorted(market["bids"], key=lambda d: d["price"], reverse=True)
+
 
 def test_market_data_03_check_agregation():
     print("Create order book")
@@ -200,7 +215,7 @@ def test_market_data_03_check_agregation():
     order2 = Order(Side.SELL, 2, 1)
     order3 = Order(Side.BUY, 1, 1)
     order4 = Order(Side.SELL, 2, 1)
-    
+
     print("Adding several orders")
     book.add_order(order1)
     book.add_order(order2)
@@ -208,12 +223,13 @@ def test_market_data_03_check_agregation():
     book.add_order(order4)
 
     print("Getting market data")
-    market = book.market_data()
+    market = book.market_data
 
-    assert market == { 
-        "asks": [{ "price": 2.0, "quantity": 2.0 }], 
-        "bids": [{ "price": 1.0, "quantity": 2.0 }] 
+    assert market == {
+        "asks": [{"price": 2.0, "quantity": 2.0}],
+        "bids": [{"price": 1.0, "quantity": 2.0}]
     }
+
 
 # success 'try to change order in order book'
 
@@ -233,6 +249,7 @@ def test_except_try_change_01_side_after_add():
 
     assert not is_same_orders(order, order_added)
 
+
 def test_except_try_change_02_price_after_add():
     print("Create order book")
     book = OrderBook()
@@ -248,6 +265,7 @@ def test_except_try_change_02_price_after_add():
     order_added = book.get_order(id)
 
     assert not is_same_orders(order, order_added)
+
 
 def test_except_try_change_03_quantity_after_add():
     print("Create order book")
@@ -265,16 +283,18 @@ def test_except_try_change_03_quantity_after_add():
 
     assert not is_same_orders(order, order_added)
 
-# excepr 'add order' tests
+
+# except 'add order' tests
 
 @pytest.mark.parametrize("order", bad_orders())
 def test_except_add_order_01_bad_orders(order):
     print("Create order book")
     book = OrderBook()
-    
+
     print("Adding incorrect order")
     with pytest.raises(BadOrderEx):
         assert type(book.add_order(order)) == int
+
 
 def test_except_add_order_02_add_several_times():
     print("Create order book")
@@ -286,10 +306,11 @@ def test_except_add_order_02_add_several_times():
     print("Adding order first time")
     id = book.add_order(order)
     order.id = id
-    
+
     print("Trying to add order two times")
     with pytest.raises(BadOrderEx):
         assert type(book.add_order(order)) == int
+
 
 def test_except_add_order_03_add_del_add_chain():
     print("Create order book")
@@ -297,10 +318,11 @@ def test_except_add_order_03_add_del_add_chain():
     order = random_order()
     id = book.add_order(order)
     order = book.del_order(id)
-    
+
     print("Trying to add deleted order")
     with pytest.raises(BadOrderEx):
         assert type(book.add_order(order)) == int
+
 
 # except 'del order' test
 
@@ -313,6 +335,7 @@ def test_except_del_order_01_order_id_not_exists():
     with pytest.raises(NoOrderEx):
         assert type(book.del_order(id)) == Order
 
+
 # except 'get order' tests
 
 def test_except_get_order_01_order_id_not_exists():
@@ -323,4 +346,3 @@ def test_except_get_order_01_order_id_not_exists():
     print("Trying to get not exist order")
     with pytest.raises(NoOrderEx):
         assert type(book.get_order(id)) == Order
-

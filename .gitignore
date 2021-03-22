@@ -2,3 +2,5 @@
 /.pytest_cache
 /*.ipynb
 /test_results
+/.idea
+/.vs
